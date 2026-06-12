@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 const STORAGE_KEY = "placetracker_data";
 const TARGET_KEY  = "placetracker_target";
 const COMPANIES_KEY = "placetracker_companies";
+const FUTURE_TASKS_KEY = "placetracker_future_tasks";
 
 const STATUS_CONFIG = {
   Applied:   { bg: "#f1f0fe", color: "#534AB7", border: "#AFA9EC" },
@@ -560,12 +561,154 @@ function CompaniesPage({ companies, setCompanies }) {
   );
 }
 
+// ── Future Tasks Page ─────────────────────────────────────────────────────────
+const PRIORITY_CONFIG = {
+  High:   { bg: "#fcebeb", color: "#A32D2D", border: "#F09595" },
+  Medium: { bg: "#faeeda", color: "#854F0B", border: "#EF9F27" },
+  Low:    { bg: "#eaf3de", color: "#3B6D11", border: "#97C459" },
+};
+
+function FutureTasksPage({ futureTasks, setFutureTasks }) {
+  const [newTask, setNewTask]       = useState("");
+  const [newPriority, setNewPriority] = useState("Medium");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [filter, setFilter]         = useState("All"); // All | Pending | Done
+
+  const addTask = () => {
+    const t = newTask.trim();
+    if (!t) return;
+    setFutureTasks(p => [{ id: Date.now(), text: t, done: false, priority: newPriority, dueDate: newDueDate, createdAt: new Date().toISOString() }, ...p]);
+    setNewTask(""); setNewDueDate(""); setNewPriority("Medium");
+  };
+
+  const toggleDone  = id => setFutureTasks(p => p.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  const deleteTask  = id => setFutureTasks(p => p.filter(t => t.id !== id));
+  const clearDone   = ()  => setFutureTasks(p => p.filter(t => !t.done));
+
+  const displayed = futureTasks.filter(t =>
+    filter === "All" ? true : filter === "Pending" ? !t.done : t.done
+  );
+
+  const pending = futureTasks.filter(t => !t.done).length;
+  const done    = futureTasks.filter(t => t.done).length;
+
+  const inputStyle = { padding: "8px 12px", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, fontSize: 13, background: "var(--color-background-secondary)", color: "var(--color-text-primary)", outline: "none" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>The Future</h1>
+          <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2 }}>Tasks to get done — your roadmap ahead 🚀</div>
+        </div>
+        {done > 0 && (
+          <button onClick={clearDone} style={{ background: "#fcebeb", color: "#A32D2D", border: "1px solid #F09595", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontWeight: 500, fontSize: 13 }}>
+            Clear completed ({done})
+          </button>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+        {[
+          { label: "Total Tasks",  value: futureTasks.length, icon: "ti-list",       color: "#185FA5", bg: "#E6F1FB" },
+          { label: "Pending",      value: pending,            icon: "ti-clock",      color: "#854F0B", bg: "#faeeda" },
+          { label: "Completed",    value: done,               icon: "ti-circle-check", color: "#3B6D11", bg: "#eaf3de" },
+        ].map(s => (
+          <div key={s.label} style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)", padding: "1rem 1.25rem", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: s.color }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 600 }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Task */}
+      <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)", padding: "1.25rem", marginBottom: 16 }}>
+        <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 12 }}>Add a new task</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <input value={newTask} onChange={e => setNewTask(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addTask()}
+            placeholder="e.g. Apply to 5 fintech companies this week…"
+            style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
+          <select value={newPriority} onChange={e => setNewPriority(e.target.value)}
+            style={{ ...inputStyle, width: 110, cursor: "pointer" }}>
+            {Object.keys(PRIORITY_CONFIG).map(p => <option key={p}>{p}</option>)}
+          </select>
+          <input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)}
+            style={{ ...inputStyle, width: 150 }} />
+          <button onClick={addTask}
+            style={{ background: "#378ADD", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", cursor: "pointer", fontWeight: 500, fontSize: 13, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+            <i className="ti ti-plus" /> Add task
+          </button>
+        </div>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {["All", "Pending", "Done"].map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding: "6px 16px", borderRadius: 20, border: "0.5px solid var(--color-border-secondary)",
+            background: filter === f ? "#378ADD" : "var(--color-background-primary)",
+            color: filter === f ? "#fff" : "var(--color-text-secondary)",
+            cursor: "pointer", fontSize: 13, fontWeight: filter === f ? 500 : 400
+          }}>{f}</button>
+        ))}
+      </div>
+
+      {/* Task list */}
+      {displayed.length === 0 ? (
+        <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)", padding: "3rem", textAlign: "center" }}>
+          <i className="ti ti-rocket" style={{ fontSize: 42, color: "var(--color-text-tertiary)", display: "block", marginBottom: 12 }} />
+          <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 6 }}>
+            {filter === "Done" ? "No completed tasks yet" : "No tasks yet — add one above!"}
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden" }}>
+          {displayed.map((task, idx) => {
+            const pCfg = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+            const isOverdue = task.dueDate && !task.done && new Date(task.dueDate) < new Date();
+            return (
+              <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", borderBottom: idx < displayed.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none", opacity: task.done ? 0.6 : 1 }}>
+                <button onClick={() => toggleDone(task.id)} style={{ background: "none", border: `2px solid ${task.done ? "#97C459" : "var(--color-border-secondary)"}`, borderRadius: 6, width: 22, height: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#3B6D11", background: task.done ? "#eaf3de" : "transparent" }}>
+                  {task.done && <i className="ti ti-check" style={{ fontSize: 13 }} />}
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 500, fontSize: 14, textDecoration: task.done ? "line-through" : "none", color: task.done ? "var(--color-text-secondary)" : "var(--color-text-primary)", marginBottom: 3 }}>{task.text}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, background: pCfg.bg, color: pCfg.color, border: `1px solid ${pCfg.border}`, borderRadius: 5, padding: "1px 7px", fontWeight: 500 }}>{task.priority}</span>
+                    {task.dueDate && (
+                      <span style={{ fontSize: 11, color: isOverdue ? "#A32D2D" : "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 3 }}>
+                        <i className="ti ti-calendar" style={{ fontSize: 11 }} />
+                        {isOverdue && !task.done ? "Overdue · " : ""}{fmt(task.dueDate)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "4px 6px", borderRadius: 5, flexShrink: 0 }} title="Delete">
+                  <i className="ti ti-trash" style={{ fontSize: 15 }} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function PlaceTracker() {
-  const [apps,      setApps]      = useState(() => ls(STORAGE_KEY, DEFAULT_DATA));
-  const [companies, setCompanies] = useState(() => ls(COMPANIES_KEY, DEFAULT_COMPANIES));
-  const [trash,     setTrash]     = useState(() => ls("placetracker_trash", []));
-  const [target,    setTarget]    = useState(() => ls(TARGET_KEY, 50));
+  const [apps,        setApps]        = useState(() => ls(STORAGE_KEY, DEFAULT_DATA));
+  const [companies,   setCompanies]   = useState(() => ls(COMPANIES_KEY, DEFAULT_COMPANIES));
+  const [trash,       setTrash]       = useState(() => ls("placetracker_trash", []));
+  const [target,      setTarget]      = useState(() => ls(TARGET_KEY, 50));
+  const [futureTasks, setFutureTasks] = useState(() => ls(FUTURE_TASKS_KEY, []));
   const [page,      setPage]      = useState("dashboard");
   const [search,    setSearch]    = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -573,11 +716,19 @@ export default function PlaceTracker() {
   const [modalMode, setModalMode] = useState(null);
   const [editRow,   setEditRow]   = useState(null);
   const [previewResume, setPreviewResume] = useState(null);
+  const [showTaskPopup, setShowTaskPopup] = useState(false);
+
+  useEffect(() => {
+    // Show popup on first load if there are pending tasks
+    const pending = futureTasks.filter(t => !t.done);
+    if (pending.length > 0) setShowTaskPopup(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => lsSet(STORAGE_KEY, apps), [apps]);
   useEffect(() => lsSet(COMPANIES_KEY, companies), [companies]);
   useEffect(() => lsSet("placetracker_trash", trash), [trash]);
   useEffect(() => lsSet(TARGET_KEY, target), [target]);
+  useEffect(() => lsSet(FUTURE_TASKS_KEY, futureTasks), [futureTasks]);
 
   const stats = useMemo(() => ({
     total: apps.length,
@@ -639,6 +790,7 @@ export default function PlaceTracker() {
     { id: "companies",    icon: "ti-building",         label: "Companies", badge: companies.length },
     { id: "analytics",    icon: "ti-chart-bar",        label: "Analytics" },
     { id: "calendar",     icon: "ti-calendar",         label: "Calendar", badge: upcomingEvents.length },
+    { id: "future",       icon: "ti-rocket",           label: "Future Tasks", badge: futureTasks.filter(t => !t.done).length },
     { id: "trash",        icon: "ti-trash",            label: "Trash / History", badge: trash.length },
     { id: "settings",     icon: "ti-settings",         label: "Settings" },
   ];
@@ -651,6 +803,71 @@ export default function PlaceTracker() {
           onSave={modalMode === "edit" ? saveEdit : addApp} />
       )}
       {previewResume && <ResumePreviewModal resume={previewResume} onClose={() => setPreviewResume(null)} />}
+
+      {/* ── STARTUP TASK POPUP ── */}
+      {showTaskPopup && (() => {
+        const pending = futureTasks.filter(t => !t.done);
+        if (!pending.length) return null;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => setShowTaskPopup(false)}>
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 16, border: "0.5px solid var(--color-border-secondary)", width: 460, maxWidth: "95vw", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}
+              onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{ padding: "1.25rem 1.5rem 1rem", borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "#faeeda", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <i className="ti ti-rocket" style={{ fontSize: 22, color: "#854F0B" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>Your tasks for today 🚀</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{pending.length} pending task{pending.length > 1 ? "s" : ""} waiting for you</div>
+                </div>
+                <button onClick={() => setShowTaskPopup(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 20, padding: 4 }}>
+                  <i className="ti ti-x" />
+                </button>
+              </div>
+              {/* Task list */}
+              <div style={{ overflowY: "auto", flex: 1 }}>
+                {pending.map((task, idx) => {
+                  const pCfg = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+                  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+                  return (
+                    <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderBottom: idx < pending.length - 1 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                      <button onClick={() => { setFutureTasks(p => p.map(t => t.id === task.id ? { ...t, done: true } : t)); }}
+                        style={{ background: "none", border: "2px solid var(--color-border-secondary)", borderRadius: 6, width: 22, height: 22, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        title="Mark done">
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 3 }}>{task.text}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <span style={{ fontSize: 11, background: pCfg.bg, color: pCfg.color, border: `1px solid ${pCfg.border}`, borderRadius: 5, padding: "1px 7px", fontWeight: 500 }}>{task.priority}</span>
+                          {task.dueDate && (
+                            <span style={{ fontSize: 11, color: isOverdue ? "#A32D2D" : "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 3 }}>
+                              <i className="ti ti-calendar" style={{ fontSize: 11 }} />
+                              {isOverdue ? "Overdue · " : ""}{fmt(task.dueDate)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Footer */}
+              <div style={{ padding: "1rem 1.5rem", borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button onClick={() => { setShowTaskPopup(false); setPage("future"); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#185FA5", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+                  <i className="ti ti-arrow-right" /> View all in The Future
+                </button>
+                <button onClick={() => setShowTaskPopup(false)}
+                  style={{ background: "#378ADD", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontWeight: 500, fontSize: 13 }}>
+                  Let's go!
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Sidebar */}
       <aside style={{ width: 220, background: "var(--color-background-primary)", borderRight: "0.5px solid var(--color-border-tertiary)", display: "flex", flexDirection: "column", padding: "0 0 1rem", flexShrink: 0 }}>
@@ -677,7 +894,7 @@ export default function PlaceTracker() {
               <i className={`ti ${item.icon}`} style={{ fontSize: 18 }} />
               {item.label}
               {item.badge > 0 && (
-                <span style={{ marginLeft: "auto", fontSize: 11, background: item.id === "companies" ? "#378ADD" : "#E24B4A", color: "#fff", borderRadius: 10, padding: "1px 7px", fontWeight: 600, minWidth: 18, textAlign: "center" }}>{item.badge}</span>
+                <span style={{ marginLeft: "auto", fontSize: 11, background: item.id === "companies" ? "#378ADD" : item.id === "future" ? "#854F0B" : "#E24B4A", color: "#fff", borderRadius: 10, padding: "1px 7px", fontWeight: 600, minWidth: 18, textAlign: "center" }}>{item.badge}</span>
               )}
             </button>
           ))}
@@ -879,6 +1096,11 @@ export default function PlaceTracker() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── THE FUTURE ── */}
+          {page === "future" && (
+            <FutureTasksPage futureTasks={futureTasks} setFutureTasks={setFutureTasks} />
           )}
 
           {/* ── TRASH ── */}
