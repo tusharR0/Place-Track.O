@@ -790,7 +790,7 @@ export default function PlaceTracker() {
     { id: "companies",    icon: "ti-building",         label: "Companies", badge: companies.length },
     { id: "analytics",    icon: "ti-chart-bar",        label: "Analytics" },
     { id: "calendar",     icon: "ti-calendar",         label: "Calendar", badge: upcomingEvents.length },
-    { id: "future",       icon: "ti-rocket",           label: "Future Tasks", badge: futureTasks.filter(t => !t.done).length },
+    { id: "future",       icon: "ti-rocket",           label: "The Future", badge: futureTasks.filter(t => !t.done).length },
     { id: "trash",        icon: "ti-trash",            label: "Trash / History", badge: trash.length },
     { id: "settings",     icon: "ti-settings",         label: "Settings" },
   ];
